@@ -1,0 +1,14 @@
+## .NET build output
+bin/
+obj/
+publish/
+publish-slim/
+*.pdb
+
+## User-specific files
+*.user
+*.suo
+
+## Visual Studio / Rider
+.vs/
+.idea/

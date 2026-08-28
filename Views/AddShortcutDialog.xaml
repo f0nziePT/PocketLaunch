@@ -1,0 +1,67 @@
+<Window x:Class="PocketLaunch.Views.AddShortcutDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        mc:Ignorable="d"
+        Title="Add shortcut"
+        Height="360" Width="320"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner">
+
+    <Border Background="{StaticResource WindowBackgroundBrush}"
+            CornerRadius="14"
+            BorderBrush="{StaticResource BorderBrush}"
+            BorderThickness="1"
+            Padding="18">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="24" ShadowDepth="4" Opacity="0.4" Color="Black"/>
+        </Border.Effect>
+
+        <StackPanel>
+            <TextBlock Text="New shortcut" Foreground="{StaticResource PrimaryTextBrush}"
+                       FontSize="15" FontWeight="SemiBold" Margin="0,0,0,14"/>
+
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                <RadioButton x:Name="FolderRadio" Content="Folder" IsChecked="True"
+                             Foreground="{StaticResource PrimaryTextBrush}" GroupName="Type" Margin="0,0,16,0"/>
+                <RadioButton x:Name="AppRadio" Content="Application"
+                             Foreground="{StaticResource PrimaryTextBrush}" GroupName="Type"/>
+            </StackPanel>
+
+            <TextBlock Text="Path" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="0,0,0,4"/>
+            <Grid Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="PathBox" Grid.Column="0" Padding="6" Background="{StaticResource CardBackgroundBrush}"
+                         Foreground="{StaticResource PrimaryTextBrush}" BorderThickness="1"
+                         BorderBrush="{StaticResource BorderBrush}"/>
+                <Button x:Name="BrowseButton" Grid.Column="1" Content="Browse" Margin="6,0,0,0"
+                        Padding="8,4" Click="BrowseButton_Click"/>
+            </Grid>
+
+            <TextBlock Text="Name" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="0,0,0,4"/>
+            <TextBox x:Name="NameBox" Padding="6" Margin="0,0,0,12" Background="{StaticResource CardBackgroundBrush}"
+                     Foreground="{StaticResource PrimaryTextBrush}" BorderThickness="1"
+                     BorderBrush="{StaticResource BorderBrush}"/>
+
+            <TextBlock Text="Description" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="0,0,0,4"/>
+            <TextBox x:Name="DescriptionBox" Padding="6" Margin="0,0,0,18" Background="{StaticResource CardBackgroundBrush}"
+                     Foreground="{StaticResource PrimaryTextBrush}" BorderThickness="1"
+                     BorderBrush="{StaticResource BorderBrush}"
+                     TextWrapping="Wrap" AcceptsReturn="True" Height="50"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Cancel" Padding="10,5" Margin="0,0,8,0" Click="CancelButton_Click"/>
+                <Button x:Name="SaveButton" Content="Add" Padding="14,5"
+                        Background="{StaticResource AccentBrush}" Foreground="White" BorderThickness="0"
+                        Click="SaveButton_Click"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>
