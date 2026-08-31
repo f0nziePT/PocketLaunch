@@ -15,7 +15,8 @@ Give each shortcut a friendly name and a short description, pin the ones you use
 
 ## Screenshots
 
-_(add a screenshot of the tray popup here)_
+<img width="370" height="624" alt="image" src="https://github.com/user-attachments/assets/ea6126f5-94d7-458d-ab38-fc42abe4c27b" />
+
 
 ## Getting started
 
