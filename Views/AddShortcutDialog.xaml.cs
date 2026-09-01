@@ -9,11 +9,25 @@ namespace PocketLaunch.Views;
 
 public partial class AddShortcutDialog : Window
 {
+    private readonly Shortcut? _editing;
+
     public Shortcut? Result { get; private set; }
 
-    public AddShortcutDialog()
+    public AddShortcutDialog(Shortcut? editing = null)
     {
         InitializeComponent();
+        _editing = editing;
+
+        if (_editing is not null)
+        {
+            TitleText.Text = "Edit shortcut";
+            SaveButton.Content = "Save";
+            NameBox.Text = _editing.Name;
+            DescriptionBox.Text = _editing.Description;
+            PathBox.Text = _editing.Path;
+            FolderRadio.IsChecked = _editing.Type == ShortcutType.Folder;
+            AppRadio.IsChecked = _editing.Type == ShortcutType.Application;
+        }
     }
 
     private void BrowseButton_Click(object sender, RoutedEventArgs e)
@@ -68,13 +82,26 @@ public partial class AddShortcutDialog : Window
             return;
         }
 
-        Result = new Shortcut
+        var type = FolderRadio.IsChecked == true ? ShortcutType.Folder : ShortcutType.Application;
+
+        if (_editing is not null)
         {
-            Name = name,
-            Description = DescriptionBox.Text.Trim(),
-            Path = path,
-            Type = FolderRadio.IsChecked == true ? ShortcutType.Folder : ShortcutType.Application
-        };
+            _editing.Name = name;
+            _editing.Description = DescriptionBox.Text.Trim();
+            _editing.Path = path;
+            _editing.Type = type;
+            Result = _editing;
+        }
+        else
+        {
+            Result = new Shortcut
+            {
+                Name = name,
+                Description = DescriptionBox.Text.Trim(),
+                Path = path,
+                Type = type
+            };
+        }
 
         DialogResult = true;
     }

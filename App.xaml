@@ -14,6 +14,8 @@
         <SolidColorBrush x:Key="SecondaryTextBrush" Color="#9A9DAE"/>
         <SolidColorBrush x:Key="BorderBrush" Color="#3A3C48"/>
 
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+
         <Style x:Key="IconButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="26"/>
             <Setter Property="Height" Value="26"/>
