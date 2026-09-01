@@ -10,6 +10,10 @@ using MessageBox = System.Windows.MessageBox;
 using Shortcut = PocketLaunch.Models.Shortcut;
 using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
+using Point = System.Windows.Point;
+using MouseEventArgs = System.Windows.Input.MouseEventArgs;
+using DragEventArgs = System.Windows.DragEventArgs;
+using DragDropEffects = System.Windows.DragDropEffects;
 
 namespace PocketLaunch;
 
@@ -19,6 +23,11 @@ public partial class MainWindow : Window
     private readonly BackupService _backupService = new();
     private readonly ObservableCollection<Shortcut> _shortcuts = new();
     private ShortcutData _data = new();
+
+    private Point _dragStartPoint;
+    private Shortcut? _dragCandidate;
+    private bool _isDragging;
+    private bool _justDragged;
 
     public MainWindow()
     {
@@ -109,7 +118,7 @@ public partial class MainWindow : Window
 
     private void RemoveShortcut_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is System.Windows.Controls.Button { Tag: Shortcut shortcut })
+        if (sender is FrameworkElement { Tag: Shortcut shortcut })
         {
             _shortcuts.Remove(shortcut);
             SaveShortcuts();
@@ -117,12 +126,83 @@ public partial class MainWindow : Window
         }
     }
 
+    private void EditShortcut_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: Shortcut shortcut }) return;
+
+        var dialog = new AddShortcutDialog(shortcut) { Owner = this };
+        if (dialog.ShowDialog() == true)
+        {
+            SaveShortcuts();
+            var icon = ShellIconService.GetIcon(shortcut.Path);
+            if (icon is not null) shortcut.Icon = icon;
+        }
+    }
+
     private void ShortcutCard_Click(object sender, MouseButtonEventArgs e)
     {
+        if (_justDragged)
+        {
+            _justDragged = false;
+            return;
+        }
+
         if (sender is System.Windows.Controls.Border { Tag: Shortcut shortcut })
         {
             Launch(shortcut);
         }
+    }
+
+    private void ShortcutCard_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _dragStartPoint = e.GetPosition(null);
+        _dragCandidate = (sender as System.Windows.Controls.Border)?.Tag as Shortcut;
+    }
+
+    private void ShortcutCard_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (_isDragging || _dragCandidate is null || e.LeftButton != MouseButtonState.Pressed) return;
+
+        var current = e.GetPosition(null);
+        if (Math.Abs(current.X - _dragStartPoint.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(current.Y - _dragStartPoint.Y) < SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+
+        _isDragging = true;
+        var dragged = _dragCandidate;
+        _dragCandidate = null;
+
+        try
+        {
+            DragDrop.DoDragDrop((System.Windows.Controls.Border)sender, dragged!, DragDropEffects.Move);
+        }
+        finally
+        {
+            _isDragging = false;
+        }
+    }
+
+    private void ShortcutCard_DragEnter(object sender, DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(typeof(Shortcut)) ? DragDropEffects.Move : DragDropEffects.None;
+    }
+
+    private void ShortcutCard_Drop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(typeof(Shortcut))) return;
+        if (e.Data.GetData(typeof(Shortcut)) is not Shortcut dragged) return;
+        if ((sender as System.Windows.Controls.Border)?.Tag is not Shortcut target) return;
+        if (ReferenceEquals(dragged, target)) return;
+
+        var oldIndex = _shortcuts.IndexOf(dragged);
+        var newIndex = _shortcuts.IndexOf(target);
+        if (oldIndex < 0 || newIndex < 0) return;
+
+        _shortcuts.Move(oldIndex, newIndex);
+        SaveShortcuts();
+        _justDragged = true;
     }
 
     private void Launch(Shortcut shortcut)

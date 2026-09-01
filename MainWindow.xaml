@@ -69,9 +69,20 @@
                             <DataTemplate>
                                 <Border Background="{StaticResource CardBackgroundBrush}"
                                         CornerRadius="10" Padding="10" Margin="0,0,0,8"
+                                        PreviewMouseLeftButtonDown="ShortcutCard_PreviewMouseLeftButtonDown"
+                                        PreviewMouseMove="ShortcutCard_PreviewMouseMove"
                                         MouseLeftButtonUp="ShortcutCard_Click"
+                                        AllowDrop="True"
+                                        DragEnter="ShortcutCard_DragEnter"
+                                        Drop="ShortcutCard_Drop"
                                         Tag="{Binding}"
                                         Cursor="Hand">
+                                    <Border.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Edit" Tag="{Binding}" Click="EditShortcut_Click"/>
+                                            <MenuItem Header="Remove" Tag="{Binding}" Click="RemoveShortcut_Click"/>
+                                        </ContextMenu>
+                                    </Border.ContextMenu>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
