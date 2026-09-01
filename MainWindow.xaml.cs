@@ -2,18 +2,21 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Documents;
 using System.Windows.Input;
+using System.Windows.Media;
 using PocketLaunch.Models;
 using PocketLaunch.Services;
 using PocketLaunch.Views;
+using Border = System.Windows.Controls.Border;
 using MessageBox = System.Windows.MessageBox;
 using Shortcut = PocketLaunch.Models.Shortcut;
 using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using Point = System.Windows.Point;
 using MouseEventArgs = System.Windows.Input.MouseEventArgs;
-using DragEventArgs = System.Windows.DragEventArgs;
-using DragDropEffects = System.Windows.DragDropEffects;
+using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+using Size = System.Windows.Size;
 
 namespace PocketLaunch;
 
@@ -26,8 +29,15 @@ public partial class MainWindow : Window
 
     private Point _dragStartPoint;
     private Shortcut? _dragCandidate;
+    private Border? _dragSourceBorder;
+    private Point _dragGrabOffset;
+
     private bool _isDragging;
     private bool _justDragged;
+    private DragVisualAdorner? _dragAdorner;
+    private AdornerLayer? _dragAdornerLayer;
+    private Shortcut? _dropTarget;
+    private bool _dropBefore;
 
     public MainWindow()
     {
@@ -147,7 +157,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (sender is System.Windows.Controls.Border { Tag: Shortcut shortcut })
+        if (sender is Border { Tag: Shortcut shortcut })
         {
             Launch(shortcut);
         }
@@ -155,54 +165,166 @@ public partial class MainWindow : Window
 
     private void ShortcutCard_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        _dragStartPoint = e.GetPosition(null);
-        _dragCandidate = (sender as System.Windows.Controls.Border)?.Tag as Shortcut;
+        if (sender is not Border border) return;
+
+        _dragStartPoint = e.GetPosition(this);
+        _dragGrabOffset = e.GetPosition(border);
+        _dragCandidate = border.Tag as Shortcut;
+        _dragSourceBorder = border;
     }
 
-    private void ShortcutCard_PreviewMouseMove(object sender, MouseEventArgs e)
+    private void MainWindow_PreviewMouseMove(object sender, MouseEventArgs e)
     {
-        if (_isDragging || _dragCandidate is null || e.LeftButton != MouseButtonState.Pressed) return;
+        if (e.LeftButton != MouseButtonState.Pressed || _dragCandidate is null) return;
 
-        var current = e.GetPosition(null);
-        if (Math.Abs(current.X - _dragStartPoint.X) < SystemParameters.MinimumHorizontalDragDistance &&
-            Math.Abs(current.Y - _dragStartPoint.Y) < SystemParameters.MinimumVerticalDragDistance)
+        var current = e.GetPosition(this);
+
+        if (!_isDragging)
+        {
+            if (Math.Abs(current.X - _dragStartPoint.X) < SystemParameters.MinimumHorizontalDragDistance &&
+                Math.Abs(current.Y - _dragStartPoint.Y) < SystemParameters.MinimumVerticalDragDistance)
+            {
+                return;
+            }
+
+            StartDrag();
+        }
+
+        UpdateDrag(current);
+    }
+
+    private void MainWindow_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_isDragging)
+        {
+            FinishDrag();
+            e.Handled = true;
+        }
+
+        _dragCandidate = null;
+        _dragSourceBorder = null;
+    }
+
+    private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (_isDragging && e.Key == Key.Escape)
+        {
+            CancelDrag();
+            e.Handled = true;
+        }
+    }
+
+    private void StartDrag()
+    {
+        if (_dragSourceBorder is null || _dragCandidate is null) return;
+
+        _isDragging = true;
+        CaptureMouse();
+
+        _dragSourceBorder.Opacity = 0.25;
+
+        _dragAdornerLayer = AdornerLayer.GetAdornerLayer(RootBorder);
+        var size = new Size(_dragSourceBorder.ActualWidth, _dragSourceBorder.ActualHeight);
+        _dragAdorner = new DragVisualAdorner(RootBorder, _dragSourceBorder, size);
+        _dragAdornerLayer?.Add(_dragAdorner);
+    }
+
+    private void UpdateDrag(Point currentPositionInWindow)
+    {
+        if (_dragAdorner is null || _dragSourceBorder is null) return;
+
+        var posInRoot = TranslatePoint(currentPositionInWindow, RootBorder);
+        _dragAdorner.UpdatePosition(new Point(posInRoot.X - _dragGrabOffset.X, posInRoot.Y - _dragGrabOffset.Y));
+
+        UpdateDropIndicator(currentPositionInWindow);
+    }
+
+    private void UpdateDropIndicator(Point currentPositionInWindow)
+    {
+        ClearDropIndicator();
+
+        var posInList = TranslatePoint(currentPositionInWindow, ShortcutsList);
+        var hit = VisualTreeHelper.HitTest(ShortcutsList, posInList)?.VisualHit;
+
+        Border? hoveredBorder = null;
+        while (hit is not null)
+        {
+            if (hit is Border { Tag: Shortcut } b)
+            {
+                hoveredBorder = b;
+                break;
+            }
+            hit = VisualTreeHelper.GetParent(hit);
+        }
+
+        if (hoveredBorder is null || hoveredBorder.Tag is not Shortcut target || ReferenceEquals(target, _dragCandidate))
         {
             return;
         }
 
-        _isDragging = true;
+        var posInCard = TranslatePoint(currentPositionInWindow, hoveredBorder);
+        var before = posInCard.Y < hoveredBorder.ActualHeight / 2;
+
+        _dropTarget = target;
+        _dropBefore = before;
+
+        if (before) target.IsDropTargetAbove = true;
+        else target.IsDropTargetBelow = true;
+    }
+
+    private void ClearDropIndicator()
+    {
+        if (_dropTarget is null) return;
+        _dropTarget.IsDropTargetAbove = false;
+        _dropTarget.IsDropTargetBelow = false;
+        _dropTarget = null;
+    }
+
+    private void FinishDrag()
+    {
         var dragged = _dragCandidate;
-        _dragCandidate = null;
+        var target = _dropTarget;
+        var before = _dropBefore;
 
-        try
+        EndDragVisuals();
+
+        if (dragged is not null && target is not null && !ReferenceEquals(dragged, target))
         {
-            DragDrop.DoDragDrop((System.Windows.Controls.Border)sender, dragged!, DragDropEffects.Move);
+            var oldIndex = _shortcuts.IndexOf(dragged);
+            var targetIndex = _shortcuts.IndexOf(target);
+            if (oldIndex >= 0 && targetIndex >= 0)
+            {
+                var newIndex = before ? targetIndex : targetIndex + 1;
+                if (newIndex > oldIndex) newIndex--;
+                _shortcuts.Move(oldIndex, Math.Clamp(newIndex, 0, _shortcuts.Count - 1));
+                SaveShortcuts();
+            }
         }
-        finally
-        {
-            _isDragging = false;
-        }
-    }
 
-    private void ShortcutCard_DragEnter(object sender, DragEventArgs e)
-    {
-        e.Effects = e.Data.GetDataPresent(typeof(Shortcut)) ? DragDropEffects.Move : DragDropEffects.None;
-    }
-
-    private void ShortcutCard_Drop(object sender, DragEventArgs e)
-    {
-        if (!e.Data.GetDataPresent(typeof(Shortcut))) return;
-        if (e.Data.GetData(typeof(Shortcut)) is not Shortcut dragged) return;
-        if ((sender as System.Windows.Controls.Border)?.Tag is not Shortcut target) return;
-        if (ReferenceEquals(dragged, target)) return;
-
-        var oldIndex = _shortcuts.IndexOf(dragged);
-        var newIndex = _shortcuts.IndexOf(target);
-        if (oldIndex < 0 || newIndex < 0) return;
-
-        _shortcuts.Move(oldIndex, newIndex);
-        SaveShortcuts();
         _justDragged = true;
+    }
+
+    private void CancelDrag()
+    {
+        EndDragVisuals();
+        ReleaseMouseCapture();
+    }
+
+    private void EndDragVisuals()
+    {
+        ClearDropIndicator();
+
+        if (_dragAdornerLayer is not null && _dragAdorner is not null)
+        {
+            _dragAdornerLayer.Remove(_dragAdorner);
+        }
+        _dragAdorner = null;
+        _dragAdornerLayer = null;
+
+        if (_dragSourceBorder is not null) _dragSourceBorder.Opacity = 1;
+
+        ReleaseMouseCapture();
+        _isDragging = false;
     }
 
     private void Launch(Shortcut shortcut)

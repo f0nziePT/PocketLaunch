@@ -50,6 +50,22 @@ public class Shortcut : INotifyPropertyChanged
         set => SetField(ref _icon, value);
     }
 
+    private bool _isDropTargetAbove;
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsDropTargetAbove
+    {
+        get => _isDropTargetAbove;
+        set => SetField(ref _isDropTargetAbove, value);
+    }
+
+    private bool _isDropTargetBelow;
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsDropTargetBelow
+    {
+        get => _isDropTargetBelow;
+        set => SetField(ref _isDropTargetBelow, value);
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private void SetField<T>(ref T field, T value, [System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
